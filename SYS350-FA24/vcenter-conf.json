@@ -1,0 +1,6 @@
+{ "vcenter": [
+    {
+        "vcenterhost" : "vCenter.riley.local",
+        "vcenteradmin" : "rileybashaw-adm@riley.local"
+    }]
+}

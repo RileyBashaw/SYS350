@@ -1,0 +1,79 @@
+## Riley Bashaw
+## SYS 350
+## Milestone 4 Deliverable 2
+## 12/12/2024
+
+import getpass
+import json
+import ssl
+from pyVim.connect import SmartConnect, Disconnect
+from pyVmomi import vim
+
+# Load vCenter configuration from json file
+with open('vcenter-conf.json', 'r') as file:
+    config = json.load(file)
+
+vcenterhost = config['vcenter'][0]['vcenterhost']
+vcenteradmin = config['vcenter'][0]['vcenteradmin']
+print(f"Logging into {vcenterhost} as {vcenteradmin}...")
+
+password = getpass.getpass(prompt="Enter your vCenter password: ")
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+ssl_context.verify_mode = ssl.CERT_NONE
+
+try:
+    si = SmartConnect(host=vcenterhost, user=vcenteradmin, pwd=password, sslContext=ssl_context)
+    print(f"Successfully logged into {vcenterhost} as {vcenteradmin}")
+
+    def menu():
+        print("\n[1] vCenter Info")
+        print("[2] Session Details")
+        print("[3] VM Details")
+        print("[0] Exit")
+
+    while True:
+        menu()
+        option = input("Enter your option: ").strip()
+
+        if option == "0":
+            print("Goodbye!")
+            break
+
+        elif option == "1":
+            print(f"\nvCenter Info: {si.content.about.fullName}")
+
+        elif option == "2":
+            session = si.content.sessionManager.currentSession
+            print(f"\nSession Info:\nUsername: {session.userName}\nIP: {session.ipAddress}\nHost: {si._stub.host}")
+
+        elif option == "3":
+            vm_view = si.content.viewManager.CreateContainerView(si.content.rootFolder, [vim.VirtualMachine], True)
+            vms = vm_view.view
+
+            if not vms:
+                print("\nNo VMs found.")
+            else:
+                query = input("Enter VM name (leave blank for all): ").strip()
+                found = False
+
+                for vm in vms:
+                    if not query or query.lower() == vm.name.lower():
+                        found = True
+                        print(f"\nName: {vm.name}\nState: {vm.runtime.powerState}\nCPUs: {vm.config.hardware.numCPU}\nMemory: {vm.config.hardware.memoryMB / 1024:.2f} GB\nIP: {vm.guest.ipAddress or 'Unavailable'}")
+
+                if not found:
+                    print(f"\nVM '{query}' not found.")
+
+        else:
+            print("Invalid option.")
+
+except vim.fault.InvalidLogin:
+    print("Error: Incorrect vCenter password.")
+
+except Exception as e:
+    print(f"Unexpected error: {e}")
+
+finally:
+    if 'si' in locals():
+        Disconnect(si)
+        print("Disconnected.")
